@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seatwell — Seating Chart</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">S</span><span>Seatwell</span></div>
+      <div class="top-actions">
+        <label class="file-button">Import Excel<input id="excel-input" type="file" accept=".xlsx,.xls,.csv" /></label>
+        <button id="import-project" class="button secondary">Import project</button>
+        <input id="project-input" type="file" accept=".json" hidden />
+        <button id="export-project" class="button secondary">Save project</button>
+        <button id="export-png" class="button primary">Export PNG</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="sidebar">
+        <section class="panel-section">
+          <div class="section-heading"><h2>Tables</h2><span id="table-count">0</span></div>
+          <label class="field-label">Shape</label>
+          <div class="shape-toggle"><button class="shape-choice active" data-shape="round">Round</button><button class="shape-choice" data-shape="rectangle">Rectangle</button></div>
+          <label class="field-label" for="seat-count">Seats</label>
+          <div class="inline-control"><select id="seat-count"></select><button id="add-table" class="button primary grow">Add table</button></div>
+        </section>
+        <section class="panel-section guests-section">
+          <div class="section-heading"><h2>Guests</h2><span id="guest-count">0</span></div>
+          <p class="hint">Select a guest, then click an open chair on the chart.</p>
+          <div class="guest-actions"><button id="add-guest" class="button secondary grow">+ Add guest</button><button id="clear-guests" class="icon-button" title="Remove all guests">×</button></div>
+          <input id="guest-search" class="search" placeholder="Search guests" />
+          <div id="guest-list" class="guest-list"></div>
+        </section>
+        <section class="panel-section chart-info">
+          <div class="section-heading"><h2>Chart</h2></div>
+          <div class="info-row"><span>Assigned</span><strong id="assigned-count">0 / 0</strong></div>
+          <div class="info-row"><span>Unassigned</span><strong id="unassigned-count">0</strong></div>
+          <button id="clear-chart" class="text-button">Clear chart</button>
+        </section>
+      </aside>
+
+      <section class="workspace-wrap">
+        <div class="workspace-toolbar"><span id="assignment-status" class="status-message">Add a table to begin</span><div class="zoom-controls"><button id="zoom-out" class="icon-button">−</button><span id="zoom-value">100%</span><button id="zoom-in" class="icon-button">+</button><button id="zoom-reset" class="text-button">Reset</button></div></div>
+        <div id="workspace-viewport" class="workspace-viewport"><div id="canvas" class="canvas"></div></div>
+      </section>
+    </main>
+
+    <div id="modal-root"></div>
+    <div id="toast" class="toast"></div>
+    <script src="app.js"></script>
+    <script src="enhancements.js"></script>
+  </body>
+</html>
