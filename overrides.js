@@ -5,6 +5,13 @@ Array.prototype.sort = function preservedGuestOrder(compareFn) {
   if (this.length && this.every(item => item && typeof item.name === 'string')) return this;
   return nativeSort.call(this, compareFn);
 };
+// Block the legacy row drag handlers completely. Reordering is arrow-only.
+document.addEventListener('dragstart', event => {
+  if (event.target.closest && event.target.closest('.seat-row')) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}, true);
 const uiObserver = new MutationObserver(() => {
   document.querySelectorAll('.table-object').forEach(el => {
     const t = state.tables.find(x => x.id === el.dataset.id);
