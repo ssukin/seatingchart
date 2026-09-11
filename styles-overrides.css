@@ -1,0 +1,3 @@
+.table-object.rectangle.flipped .table-surface{width:130px;height:230px}
+.guest-combobox{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px;background:#fff}
+.seat-row.dragging{opacity:.45;background:var(--blue-soft)}
