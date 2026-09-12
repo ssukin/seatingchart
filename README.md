@@ -1,4 +1,4 @@
-# Seatwell Seating Chart
+# Seatery Seating Chart
 
 A self-contained, desktop-first seating chart editor that can be uploaded directly to GitHub Pages.
 

@@ -3,15 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Seatwell — Seating Chart</title>
+    <title>Seatery — Seating Chart</title>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="styles-overrides.css" />
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   </head>
   <body>
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">S</span><span>Seatwell</span></div>
+      <div class="brand"><span class="brand-mark">S</span><span>Seatery</span></div>
       <div class="top-actions">
+        <button id="new-project" class="button secondary">New project</button>
         <label class="file-button">Import Excel<input id="excel-input" type="file" accept=".xlsx,.xls,.csv" /></label>
         <button id="import-project" class="button secondary">Import project</button>
         <input id="project-input" type="file" accept=".json" hidden />

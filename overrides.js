@@ -53,7 +53,7 @@ function enhanceSeatInputs(modal, table) {
     wrapper.className = 'searchable-combobox';
     const input = document.createElement('input');
     input.className = 'guest-combobox';
-    input.placeholder = 'Search names';
+    input.placeholder = 'Select or search names';
     input.value = select.value || '';
     const menu = document.createElement('div');
     menu.className = 'combobox-menu';
@@ -154,5 +154,17 @@ $('#add-table').addEventListener('click', () => {
   const index = state.tables.length - 1;
   table.x = 480 + (index % 4) * 330;
   table.y = 300 + Math.floor(index / 4) * 300;
+  render();
+});
+
+$('#new-project').addEventListener('click', () => {
+  if (!confirm('Start a new project? This will clear all tables, guests, assignments, and saved chart data.')) return;
+  state.tables = [];
+  state.guests = [];
+  state.nextTable = 1;
+  state.selectedGuest = null;
+  localStorage.removeItem('seatwell-project');
+  closeModal();
+  setStatus('Add a table to begin');
   render();
 });
