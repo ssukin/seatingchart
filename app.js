@@ -65,27 +65,15 @@ $('#zoom-in').onclick=()=>setZoom(state.zoom+.1);$('#zoom-out').onclick=()=>setZ
 $('#excel-input').onchange=async e=>{const file=e.target.files[0];if(!file)return;const rows=XLSX.utils.sheet_to_json(XLSX.read(await file.arrayBuffer()).Sheets[XLSX.read(await file.arrayBuffer()).SheetNames[0]],{header:1});const headers=rows[0]||[];const root=$('#modal-root');root.innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Choose name column</h2><p class="modal-subtitle">Select the full-name column to import.</p><select id="name-column">${headers.map((h,i)=>`<option value="${i}">${escapeHtml(h||`Column ${i+1}`)}</option>`).join('')}</select><div class="modal-actions"><button class="button secondary modal-cancel">Cancel</button><button id="import-names" class="button primary">Import names</button></div></div></div>`;root.querySelector('.modal-cancel').onclick=closeModal;$('#import-names').onclick=()=>{const col=+$('#name-column').value;rows.slice(1).map(r=>String(r[col]||'').trim()).filter(Boolean).forEach(name=>{if(!state.guests.some(g=>g.name.toLowerCase()===name.toLowerCase()))state.guests.push({name});});closeModal();render();showToast('Guests imported');};};
 function download(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);} $('#export-project').onclick=()=>download('seatery-project.json',JSON.stringify({tables:state.tables,guests:state.guests,nextTable:state.nextTable},null,2),'application/json');$('#import-project').onclick=()=>$('#project-input').click();$('#project-input').onchange=async e=>{try{Object.assign(state,JSON.parse(await e.target.files[0].text()));render();showToast('Project restored');}catch{showToast('Could not open project file');}};
 $('#export-png').onclick=()=>{
-  // Derive the export rectangle from the actual content. The visible viewport
-  // and the CSS canvas size are intentionally not used here: tables may be
-  // dragged anywhere on the infinite-feeling workspace.
-  const pad=70, labelPadX=150, labelPadY=28;
-  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-  const include=(x,y,w,h)=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x+w);maxY=Math.max(maxY,y+h);};
+  // Export exactly the visible seating workspace, including its current
+  // scroll position and zoom. SVG clips anything outside this window.
+  const viewport=$('#workspace-viewport');
+  const w=Math.max(1,viewport.clientWidth),h=Math.max(1,viewport.clientHeight);
+  const scrollX=viewport.scrollLeft,scrollY=viewport.scrollTop,zoom=state.zoom;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#f3f6f8"/>`;
   state.tables.forEach(t=>{
-    const round=t.shape==='round',tw=round?170:(t.flipped?130:230),th=round?170:(t.flipped?230:130);
-    include(t.x,t.y,tw,th);
-    chairPositions(t.shape,t.seats,t.flipped).forEach((p,i)=>{
-      include(t.x+p.x,t.y+p.y,25,25);
-      if(t.assignments[i]) include(t.x+p.x+12.5+p.dx*25-labelPadX/2,t.y+p.y+12.5+p.dy*25-labelPadY/2,labelPadX,labelPadY);
-    });
-  });
-  if(!Number.isFinite(minX)){minX=0;minY=0;maxX=800;maxY=500;}
-  minX-=pad; minY-=pad; maxX+=pad; maxY+=pad;
-  const w=Math.max(1,Math.ceil(maxX-minX)),h=Math.max(1,Math.ceil(maxY-minY));
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#f6f8fa"/>`;
-  state.tables.forEach(t=>{
-    const x=t.x-minX,y=t.y-minY,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
-    svg+=`<g transform="translate(${x},${y})"><${round?'circle':'rect'} ${round?'cx="85" cy="85" r="85"':'x="0" y="0" width="'+cw+'" height="'+ch+'" rx="8"'} fill="white" stroke="#8795a4" stroke-width="2"/><text x="${round?85:cw/2}" y="${round?82:ch/2}" text-anchor="middle" font-family="Arial" font-size="15" font-weight="bold">Table ${t.number}</text>`;
+    const x=t.x*zoom-scrollX,y=t.y*zoom-scrollY,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
+    svg+=`<g transform="translate(${x},${y}) scale(${zoom})"><${round?'circle':'rect'} ${round?'cx="85" cy="85" r="85"':'x="0" y="0" width="'+cw+'" height="'+ch+'" rx="8"'} fill="white" stroke="#8795a4" stroke-width="2"/><text x="${round?85:cw/2}" y="${round?82:ch/2}" text-anchor="middle" font-family="Arial" font-size="15" font-weight="bold">Table ${t.number}</text>`;
     chairPositions(t.shape,t.seats,t.flipped).forEach((p,i)=>{
       const cx=p.x+12.5,cy=p.y+12.5;
       svg+=`<rect x="${cx-12.5}" y="${cy-12.5}" width="25" height="25" rx="5" fill="${t.assignments[i]?'#dce8ff':'white'}" stroke="#8c9aaa"/><text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="Arial" font-size="10">${i+1}</text>${t.assignments[i]?`<text x="${cx+p.dx*25}" y="${cy+p.dy*25+4}" text-anchor="${p.dx<-.2?'end':p.dx>.2?'start':'middle'}" font-family="Arial" font-size="10">${escapeHtml(t.assignments[i])}</text>`:''}`;
@@ -94,7 +82,7 @@ $('#export-png').onclick=()=>{
   });
   svg+='</svg>';
   const image=new Image();
-  image.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,0,0);c.toBlob(blob=>download('seatery-chart.png',blob,'image/png'))};
+  image.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,0,0);c.toBlob(blob=>download('seatery-visible-window.png',blob,'image/png'))};
   image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 };
 const saved=localStorage.getItem('seatery-project');if(saved)try{Object.assign(state,JSON.parse(saved))}catch{}setZoom(1);render();
