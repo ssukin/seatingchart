@@ -53,7 +53,49 @@ function openTable(id) { const table=state.tables.find(t=>t.id===id), root=$('#m
   $('#delete-table').onclick=()=>{if(confirm(`Delete Table ${table.number}?`)){state.tables=state.tables.filter(t=>t.id!==table.id);closeModal();render();}}; $('#save-table').onclick=()=>{closeModal();render();};
 }
 
-function makeSeatRow(table,index) { const row=document.createElement('div'); row.className='seat-row'; const number=document.createElement('span');number.className='seat-number';number.textContent=`Seat ${index+1}`; const combo=makeCombobox(table,index); const controls=document.createElement('span');controls.className='seat-move-controls';controls.innerHTML=`<button type="button" title="Move up" ${index===0?'disabled':''}>↑</button><button type="button" title="Move down" ${index===table.seats-1?'disabled':''}>↓</button>`; const move=direction=>{const target=index+direction;if(target<0||target>=table.seats)return;const moved=table.assignments.splice(index,1)[0]||null;table.assignments.splice(target,0,moved);closeModal();render();openTable(table.id);};controls.children[0].onclick=()=>move(-1);controls.children[1].onclick=()=>move(1); const clear=document.createElement('button');clear.className='remove-seat';clear.title='Clear seat';clear.textContent='×';clear.onclick=()=>{table.assignments[index]=null;closeModal();render();openTable(table.id);}; row.append(number,combo,controls,clear); return row; }
+function makeSeatRow(table,index) {
+  const row=document.createElement('div');
+  row.className='seat-row';
+
+  // Only the dotted handle is draggable, so typing in a guest field never
+  // accidentally starts a row drag.
+  const handle=document.createElement('span');
+  handle.className='seat-drag-handle';
+  handle.draggable=true;
+  handle.title='Drag to reorder seat';
+  handle.setAttribute('aria-label',`Drag Seat ${index+1} to reorder`);
+  handle.textContent='⠿';
+
+  const number=document.createElement('span');number.className='seat-number';number.textContent=`Seat ${index+1}`;
+  const combo=makeCombobox(table,index);
+  const controls=document.createElement('span');controls.className='seat-move-controls';controls.innerHTML=`<button type="button" title="Move up" ${index===0?'disabled':''}>↑</button><button type="button" title="Move down" ${index===table.seats-1?'disabled':''}>↓</button>`;
+  const move=direction=>{const target=index+direction;if(target<0||target>=table.seats)return;const moved=table.assignments.splice(index,1)[0]||null;table.assignments.splice(target,0,moved);closeModal();render();openTable(table.id);};
+  controls.children[0].onclick=()=>move(-1);controls.children[1].onclick=()=>move(1);
+  const clear=document.createElement('button');clear.className='remove-seat';clear.title='Clear seat';clear.textContent='×';clear.onclick=()=>{table.assignments[index]=null;closeModal();render();openTable(table.id);};
+
+  handle.addEventListener('dragstart',event=>{
+    row.classList.add('dragging');
+    event.dataTransfer.effectAllowed='move';
+    event.dataTransfer.setData('text/plain',String(index));
+  });
+  handle.addEventListener('dragend',()=>{
+    document.querySelectorAll('.seat-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+  });
+  row.addEventListener('dragover',event=>{event.preventDefault();row.classList.add('drag-over');event.dataTransfer.dropEffect='move';});
+  row.addEventListener('dragleave',event=>{if(!row.contains(event.relatedTarget))row.classList.remove('drag-over');});
+  row.addEventListener('drop',event=>{
+    event.preventDefault();
+    const from=Number(event.dataTransfer.getData('text/plain')), to=index;
+    document.querySelectorAll('.seat-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+    if(!Number.isInteger(from)||from===to||from<0||from>=table.seats)return;
+    const moved=table.assignments.splice(from,1)[0]||null;
+    table.assignments.splice(to,0,moved);
+    closeModal();render();openTable(table.id);
+  });
+
+  row.append(handle,number,combo,controls,clear);
+  return row;
+}
 function makeCombobox(table,index) { const wrapper=document.createElement('div');wrapper.className='searchable-combobox'; const input=document.createElement('input');input.className='guest-combobox';input.placeholder='Select or search names';input.value=table.assignments[index]||''; const menu=document.createElement('div');menu.className='combobox-menu'; wrapper.append(input,menu);
   const refresh=()=>{const query=input.value.toLowerCase(),used=usedNamesExcept(table,index);menu.innerHTML='';state.guests.filter(g=>g.name.toLowerCase().includes(query)).forEach(g=>{const option=document.createElement('button');option.type='button';option.className=`combobox-option ${used.has(g.name)?'unavailable':''}`;option.disabled=used.has(g.name);option.textContent=g.name;option.onclick=()=>{table.assignments[index]=g.name;input.value=g.name;menu.classList.remove('open');refreshAllComboboxes();};menu.appendChild(option);});menu.classList.add('open');}; input.addEventListener('focus',refresh);input.addEventListener('click',refresh);input.addEventListener('input',refresh); return wrapper; }
 function refreshAllComboboxes(){const modal=document.querySelector('.modal');if(!modal)return;const table=state.tables.find(t=>t.number===Number($('#modal-number').value));if(!table)return;modal.querySelectorAll('.seat-row').forEach((row,i)=>{const input=row.querySelector('.guest-combobox'),menu=row.querySelector('.combobox-menu');if(!input||!menu)return;const used=usedNamesExcept(table,i);menu.innerHTML='';state.guests.filter(g=>g.name.toLowerCase().includes(input.value.toLowerCase())).forEach(g=>{const option=document.createElement('button');option.type='button';option.className=`combobox-option ${used.has(g.name)?'unavailable':''}`;option.disabled=used.has(g.name);option.textContent=g.name;option.onclick=()=>{table.assignments[i]=g.name;input.value=g.name;menu.classList.remove('open');refreshAllComboboxes();};menu.appendChild(option);});});}
@@ -65,15 +107,24 @@ $('#zoom-in').onclick=()=>setZoom(state.zoom+.1);$('#zoom-out').onclick=()=>setZ
 $('#excel-input').onchange=async e=>{const file=e.target.files[0];if(!file)return;const rows=XLSX.utils.sheet_to_json(XLSX.read(await file.arrayBuffer()).Sheets[XLSX.read(await file.arrayBuffer()).SheetNames[0]],{header:1});const headers=rows[0]||[];const root=$('#modal-root');root.innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Choose name column</h2><p class="modal-subtitle">Select the full-name column to import.</p><select id="name-column">${headers.map((h,i)=>`<option value="${i}">${escapeHtml(h||`Column ${i+1}`)}</option>`).join('')}</select><div class="modal-actions"><button class="button secondary modal-cancel">Cancel</button><button id="import-names" class="button primary">Import names</button></div></div></div>`;root.querySelector('.modal-cancel').onclick=closeModal;$('#import-names').onclick=()=>{const col=+$('#name-column').value;rows.slice(1).map(r=>String(r[col]||'').trim()).filter(Boolean).forEach(name=>{if(!state.guests.some(g=>g.name.toLowerCase()===name.toLowerCase()))state.guests.push({name});});closeModal();render();showToast('Guests imported');};};
 function download(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);} $('#export-project').onclick=()=>download('seatery-project.json',JSON.stringify({tables:state.tables,guests:state.guests,nextTable:state.nextTable},null,2),'application/json');$('#import-project').onclick=()=>$('#project-input').click();$('#project-input').onchange=async e=>{try{Object.assign(state,JSON.parse(await e.target.files[0].text()));render();showToast('Project restored');}catch{showToast('Could not open project file');}};
 $('#export-png').onclick=()=>{
-  // Export exactly the visible seating workspace, including its current
-  // scroll position and zoom. SVG clips anything outside this window.
-  const viewport=$('#workspace-viewport');
-  const w=Math.max(1,viewport.clientWidth),h=Math.max(1,viewport.clientHeight);
-  const scrollX=viewport.scrollLeft,scrollY=viewport.scrollTop,zoom=state.zoom;
+  // Export the complete chart, independent of the current viewport, scroll
+  // position, or zoom. Calculate bounds from every table and its chairs so
+  // tables placed anywhere on the four-way canvas are included.
+  const padding=90;
+  const bounds={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};
+  const include=(x,y,w,h)=>{bounds.minX=Math.min(bounds.minX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxX=Math.max(bounds.maxX,x+w);bounds.maxY=Math.max(bounds.maxY,y+h);};
+  state.tables.forEach(t=>{
+    const x=t.x,y=t.y,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
+    include(x,y,round?170:cw,round?170:ch);
+    chairPositions(t.shape,t.seats,t.flipped).forEach(p=>include(x+p.x,y+p.y,25,25));
+  });
+  if(!Number.isFinite(bounds.minX)){bounds.minX=0;bounds.minY=0;bounds.maxX=900;bounds.maxY=600;}
+  const w=Math.max(1,Math.ceil(bounds.maxX-bounds.minX+padding*2)),h=Math.max(1,Math.ceil(bounds.maxY-bounds.minY+padding*2));
+  const ox=padding-bounds.minX,oy=padding-bounds.minY;
   let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="#f3f6f8"/>`;
   state.tables.forEach(t=>{
-    const x=t.x*zoom-scrollX,y=t.y*zoom-scrollY,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
-    svg+=`<g transform="translate(${x},${y}) scale(${zoom})"><${round?'circle':'rect'} ${round?'cx="85" cy="85" r="85"':'x="0" y="0" width="'+cw+'" height="'+ch+'" rx="8"'} fill="white" stroke="#8795a4" stroke-width="2"/><text x="${round?85:cw/2}" y="${round?82:ch/2}" text-anchor="middle" font-family="Arial" font-size="15" font-weight="bold">Table ${t.number}</text>`;
+    const x=t.x+ox,y=t.y+oy,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
+    svg+=`<g transform="translate(${x},${y})"><${round?'circle':'rect'} ${round?'cx="85" cy="85" r="85"':'x="0" y="0" width="'+cw+'" height="'+ch+'" rx="8"'} fill="white" stroke="#8795a4" stroke-width="2"/><text x="${round?85:cw/2}" y="${round?82:ch/2}" text-anchor="middle" font-family="Arial" font-size="15" font-weight="bold">Table ${escapeHtml(t.number)}</text><text x="${round?85:cw/2}" y="${round?101:ch/2+19}" text-anchor="middle" font-family="Arial" font-size="11" fill="#718096">${t.seats} seats</text>`;
     chairPositions(t.shape,t.seats,t.flipped).forEach((p,i)=>{
       const cx=p.x+12.5,cy=p.y+12.5;
       svg+=`<rect x="${cx-12.5}" y="${cy-12.5}" width="25" height="25" rx="5" fill="${t.assignments[i]?'#dce8ff':'white'}" stroke="#8c9aaa"/><text x="${cx}" y="${cy+4}" text-anchor="middle" font-family="Arial" font-size="10">${i+1}</text>${t.assignments[i]?`<text x="${cx+p.dx*25}" y="${cy+p.dy*25+4}" text-anchor="${p.dx<-.2?'end':p.dx>.2?'start':'middle'}" font-family="Arial" font-size="10">${escapeHtml(t.assignments[i])}</text>`:''}`;
@@ -82,7 +133,7 @@ $('#export-png').onclick=()=>{
   });
   svg+='</svg>';
   const image=new Image();
-  image.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,0,0);c.toBlob(blob=>download('seatery-visible-window.png',blob,'image/png'))};
+  image.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,0,0);c.toBlob(blob=>download('seatery-chart.png',blob,'image/png'))};
   image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 };
 const saved=localStorage.getItem('seatery-project');if(saved)try{Object.assign(state,JSON.parse(saved))}catch{}setZoom(1);render();

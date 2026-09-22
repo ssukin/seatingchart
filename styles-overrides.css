@@ -4,7 +4,10 @@
 .seat-move-controls{display:flex;gap:2px}
 .seat-move-controls button{width:25px;height:25px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--blue);line-height:1}
 .seat-move-controls button:disabled{opacity:.3;cursor:default}
-.seat-row{grid-template-columns:58px minmax(0,1fr) auto 30px}
+.seat-row{grid-template-columns:24px 58px minmax(0,1fr) auto 30px}
+.seat-drag-handle{display:flex;align-items:center;justify-content:center;color:#8c98a5;font-size:20px;line-height:1;cursor:grab;user-select:none;letter-spacing:-5px}
+.seat-drag-handle:active{cursor:grabbing}
+.seat-row.drag-over{outline:2px dashed var(--blue);outline-offset:2px;background:var(--blue-soft)}
 .searchable-combobox{position:relative;min-width:0}
 .searchable-combobox:after{content:'⌄';position:absolute;right:10px;top:7px;color:var(--muted);font-size:18px;pointer-events:none}
 .searchable-combobox:focus-within:after{color:var(--blue)}
