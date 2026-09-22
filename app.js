@@ -12,7 +12,7 @@ const snap = value => Math.round(value / 24) * 24;
 
 function chairPositions(shape, seats, flipped = false, layout = 'none', customPositions = null) {
   if (shape === 'round') return Array.from({length: seats}, (_, i) => { const a = -Math.PI / 2 + i * Math.PI * 2 / seats; return { x: 85 + Math.cos(a) * 106 - 12.5, y: 85 + Math.sin(a) * 106 - 12.5, dx: Math.cos(a), dy: Math.sin(a) }; });
-  const w = flipped ? 130 : 230, h = flipped ? 230 : 130;
+  const {w,h}=rectangleDimensions(seats,flipped,layout);
   if (layout === 'custom' && Array.isArray(customPositions) && customPositions.length === seats) return customPositions.map(p => ({...p}));
   const positions=[];
   const endCount=layout==='ends'?Math.min(2,seats):0;
@@ -22,6 +22,13 @@ function chairPositions(shape, seats, flipped = false, layout = 'none', customPo
   for(let i=0;i<bottomCount;i++){const x=(w*(i+1))/(bottomCount+1);positions.push({x:x-12.5,y:h+14,dx:0,dy:1});}
   if(endCount>0){positions.push({x:-38,y:h/2-12.5,dx:-1,dy:0});if(endCount>1)positions.push({x:w+14,y:h/2-12.5,dx:1,dy:0});}
   return positions;
+}
+
+function rectangleDimensions(seats, flipped=false, layout='none') {
+  const endCount=layout==='ends'?Math.min(2,seats):0;
+  const longSideCount=Math.max(1,Math.ceil((seats-endCount)/2));
+  const longLength=Math.max(230,longSideCount*72);
+  return flipped?{w:130,h:longLength}:{w:longLength,h:130};
 }
 
 function tableLayout(table) { return table.chairLayout || 'none'; }
@@ -60,19 +67,35 @@ function placeChairName(name, position, table, index) {
   }
 }
 
+function addChairLeader(object, position, table, index) {
+  if(table.shape!=='rectangle')return;
+  const {w,h}=rectangleDimensions(table.seats,table.flipped,tableLayout(table));
+  const layer=index%3, x1=position.x+12.5, y1=position.y+12.5;
+  let x2=x1,y2=y1;
+  if(position.y<0){y2=position.y-18-layer*17+8;}
+  else if(position.y>h){y2=position.y+26+layer*17+8;}
+  else if(position.x<0){x2=position.x-8-layer*15-35;}
+  else if(position.x>w){x2=position.x+33+layer*15+35;}
+  else if(Math.min(position.y,h-position.y)<Math.min(position.x,w-position.x)){y2=position.y< h/2?position.y-18-layer*17+8:position.y+26+layer*17+8;}
+  else{x2=position.x<w/2?position.x-8-layer*15-35:position.x+33+layer*15+35;}
+  const dx=x2-x1,dy=y2-y1,line=document.createElement('span');
+  line.className='chair-leader';line.style.left=`${x1}px`;line.style.top=`${y1}px`;line.style.width=`${Math.hypot(dx,dy)}px`;line.style.transform=`rotate(${Math.atan2(dy,dx)}rad)`;object.appendChild(line);
+}
+
 function render() {
   canvas.innerHTML = '';
   state.tables.forEach(table => {
     ensureCustomPositions(table);
     const object = document.createElement('div'); object.className = `table-object ${table.shape} ${table.flipped ? 'flipped' : ''}`; object.dataset.id = table.id; object.style.left = `${table.x}px`; object.style.top = `${table.y}px`;
     const surface = document.createElement('div'); surface.className = 'table-surface';
+    if(table.shape==='rectangle'){const dimensions=rectangleDimensions(table.seats,table.flipped,tableLayout(table));surface.style.width=`${dimensions.w}px`;surface.style.height=`${dimensions.h}px`;}
     surface.addEventListener('click', e => { e.stopPropagation(); openTable(table.id); });
     const label = document.createElement('div'); label.className = 'table-label'; label.innerHTML = `Table ${table.number}<small>${table.seats} seats</small>`; surface.appendChild(label); object.appendChild(surface);
     chairPositions(table.shape, table.seats, table.flipped, tableLayout(table), table.customPositions).forEach((position, index) => {
       const chair = document.createElement('button'); chair.className = `chair ${table.assignments[index] ? 'occupied' : ''} ${state.selectedGuest ? 'pending' : ''}`; chair.style.left = `${position.x}px`; chair.style.top = `${position.y}px`; chair.textContent = index + 1; chair.title = table.assignments[index] || `Seat ${index + 1}`;
       if(table.shape==='rectangle' && tableLayout(table)==='custom') makeChairDraggable(chair,object,table,index,position);
       chair.addEventListener('click', e => { e.stopPropagation(); if(chair.dataset.dragged==='true'){delete chair.dataset.dragged;return;} assignGuest(table.id, index); }); object.appendChild(chair);
-      if (table.assignments[index]) { const name = document.createElement('span'); name.className='chair-name'; name.textContent=table.assignments[index]; placeChairName(name,position,table,index); object.appendChild(name); }
+      if (table.assignments[index]) { addChairLeader(object,position,table,index); const name = document.createElement('span'); name.className='chair-name'; name.textContent=table.assignments[index]; placeChairName(name,position,table,index); object.appendChild(name); }
     });
     makeDraggable(object, table); canvas.appendChild(object);
   });
@@ -97,8 +120,9 @@ function makeChairDraggable(chair, object, table, index, position) {
     const canvasRect=canvas.getBoundingClientRect();
     const x=(event.clientX-canvasRect.left)/state.zoom-table.x-start.offsetX;
     const y=(event.clientY-canvasRect.top)/state.zoom-table.y-start.offsetY;
-    table.customPositions[index].x=Math.max(-52,Math.min((table.flipped?130:230)+27,x));
-    table.customPositions[index].y=Math.max(-52,Math.min((table.flipped?230:130)+27,y));
+    const dimensions=rectangleDimensions(table.seats,table.flipped,tableLayout(table));
+    table.customPositions[index].x=Math.max(-52,Math.min(dimensions.w+27,x));
+    table.customPositions[index].y=Math.max(-52,Math.min(dimensions.h+27,y));
     chair.style.left=`${table.customPositions[index].x}px`;chair.style.top=`${table.customPositions[index].y}px`;
   });
   chair.addEventListener('pointerup',()=>{if(!start)return;if(start.moved){chair.dataset.dragged='true';save();}start=null;});
@@ -220,7 +244,7 @@ $('#export-png').onclick=()=>{
   const bounds={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};
   const include=(x,y,w,h)=>{bounds.minX=Math.min(bounds.minX,x);bounds.minY=Math.min(bounds.minY,y);bounds.maxX=Math.max(bounds.maxX,x+w);bounds.maxY=Math.max(bounds.maxY,y+h);};
   state.tables.forEach(t=>{
-    const x=t.x,y=t.y,round=t.shape==='round',cw=t.flipped?130:230,ch=t.flipped?230:130;
+    const x=t.x,y=t.y,round=t.shape==='round',dimensions=rectangleDimensions(t.seats,t.flipped,tableLayout(t)),cw=dimensions.w,ch=dimensions.h;
     include(x,y,round?170:cw,round?170:ch);
     ensureCustomPositions(t);
     chairPositions(t.shape,t.seats,t.flipped,tableLayout(t),t.customPositions).forEach(p=>include(x+p.x,y+p.y,25,25));
