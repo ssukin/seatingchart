@@ -5,7 +5,8 @@
 .seat-move-controls button{width:25px;height:25px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;color:var(--blue);line-height:1}
 .seat-move-controls button:disabled{opacity:.3;cursor:default}
 .seat-row{grid-template-columns:24px 58px minmax(0,1fr) auto 30px}
-.seat-drag-handle{display:flex;align-items:center;justify-content:center;color:#8c98a5;font-size:20px;line-height:1;cursor:grab;user-select:none;letter-spacing:-5px}
+.seat-drag-handle{display:flex;align-items:center;justify-content:center;width:24px;color:#8c98a5;cursor:grab;user-select:none}
+.drag-dots{display:block;width:12px;height:18px;background:radial-gradient(circle,#8c98a5 2px,transparent 2.5px) 0 0/6px 6px}
 .seat-drag-handle:active{cursor:grabbing}
 .seat-row.drag-over{outline:2px dashed var(--blue);outline-offset:2px;background:var(--blue-soft)}
 .searchable-combobox{position:relative;min-width:0}
@@ -18,3 +19,7 @@
 .combobox-option:hover:not(:disabled){background:var(--blue-soft);color:var(--blue)}
 .combobox-option.unavailable,.combobox-option:disabled{color:#aab3bd;background:#f7f8fa;cursor:not-allowed}
 .canvas{width:2400px;height:1800px}
+.guest-row-actions{display:flex;align-items:center;gap:1px;margin-left:4px;opacity:.8}
+.guest-row-action{width:23px;height:23px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;line-height:1;font-size:15px}
+.guest-row-action:hover{background:var(--blue-soft);color:var(--blue)}
+.guest-row-action.delete:hover{background:#fff0f0;color:#b14d4d}

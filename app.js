@@ -37,7 +37,43 @@ function render() {
 }
 
 function makeDraggable(object, table) { let start = null; object.addEventListener('pointerdown', e => { if (e.target.closest('.chair')) return; start = {x:e.clientX,y:e.clientY,tx:table.x,ty:table.y}; object.setPointerCapture(e.pointerId); }); object.addEventListener('pointermove', e => { if (!start) return; table.x=snap(start.tx+(e.clientX-start.x)/state.zoom); table.y=snap(start.ty+(e.clientY-start.y)/state.zoom); object.style.left=`${table.x}px`; object.style.top=`${table.y}px`; }); object.addEventListener('pointerup', () => { if (start) { start=null; save(); } }); }
-function renderGuests() { const query=$('#guest-search').value.toLowerCase(), list=$('#guest-list'); list.innerHTML=''; state.guests.filter(g=>g.name.toLowerCase().includes(query)).forEach(guest=>{ const location=assignmentFor(guest.name), row=document.createElement('div'); row.className=`guest-item ${location?'assigned ':''}${state.selectedGuest===guest.name?'selected':''}`; row.innerHTML=`<span class="guest-dot"></span><span class="guest-name">${escapeHtml(guest.name)}</span><span class="guest-location">${location?`T${location.table.number} · S${location.seat+1}`:''}</span>`; row.onclick=()=>{state.selectedGuest=state.selectedGuest===guest.name?null:guest.name; setStatus(state.selectedGuest?`Selected ${state.selectedGuest} — click an open chair`:'Select a guest to assign'); render();}; list.appendChild(row); }); }
+function renderGuests() {
+  const query=$('#guest-search').value.toLowerCase(), list=$('#guest-list');
+  list.innerHTML='';
+  state.guests.filter(g=>g.name.toLowerCase().includes(query)).forEach(guest=>{
+    const location=assignmentFor(guest.name), row=document.createElement('div');
+    row.className=`guest-item ${location?'assigned ':''}${state.selectedGuest===guest.name?'selected':''}`;
+    const dot=document.createElement('span'); dot.className='guest-dot';
+    const name=document.createElement('span'); name.className='guest-name'; name.textContent=guest.name;
+    const guestLocation=document.createElement('span'); guestLocation.className='guest-location'; guestLocation.textContent=location?`T${location.table.number} · S${location.seat+1}`:'';
+    const actions=document.createElement('span'); actions.className='guest-row-actions';
+    const edit=document.createElement('button'); edit.type='button'; edit.className='guest-row-action'; edit.title=`Edit ${guest.name}`; edit.setAttribute('aria-label',`Edit ${guest.name}`); edit.textContent='✎';
+    const remove=document.createElement('button'); remove.type='button'; remove.className='guest-row-action delete'; remove.title=`Delete ${guest.name}`; remove.setAttribute('aria-label',`Delete ${guest.name}`); remove.textContent='×';
+    edit.onclick=event=>{
+      event.stopPropagation();
+      const next=prompt('Edit guest name:',guest.name);
+      if(next===null)return;
+      const trimmed=next.trim();
+      if(!trimmed){showToast('Guest name cannot be empty.');return;}
+      if(state.guests.some(g=>g!==guest&&g.name.toLowerCase()===trimmed.toLowerCase())){showToast('That guest already exists.');return;}
+      const old=guest.name; guest.name=trimmed;
+      state.tables.forEach(table=>table.assignments=table.assignments.map(value=>value===old?trimmed:value));
+      if(state.selectedGuest===old)state.selectedGuest=trimmed;
+      render(); showToast('Guest updated');
+    };
+    remove.onclick=event=>{
+      event.stopPropagation();
+      if(!confirm(`Delete ${guest.name}? This will also clear their seat assignment.`))return;
+      state.guests=state.guests.filter(g=>g!==guest);
+      state.tables.forEach(table=>table.assignments=table.assignments.map(value=>value===guest.name?null:value));
+      if(state.selectedGuest===guest.name){state.selectedGuest=null;setStatus('Select a guest to assign');}
+      render(); showToast('Guest deleted');
+    };
+    actions.append(edit,remove); row.append(dot,name,guestLocation,actions);
+    row.onclick=()=>{state.selectedGuest=state.selectedGuest===guest.name?null:guest.name; setStatus(state.selectedGuest?`Selected ${state.selectedGuest} — click an open chair`:'Select a guest to assign'); render();};
+    list.appendChild(row);
+  });
+}
 function renderStats() { const assigned=state.guests.filter(g=>assignmentFor(g.name)).length; $('#guest-count').textContent=state.guests.length; $('#assigned-count').textContent=`${assigned} / ${state.guests.length}`; $('#unassigned-count').textContent=state.guests.length-assigned; }
 
 function assignGuest(tableId, seatIndex) { const table=state.tables.find(t=>t.id===tableId); if(!state.selectedGuest){openTable(tableId);return;} if(table.assignments[seatIndex]&&table.assignments[seatIndex]!==state.selectedGuest){showToast('That seat is already assigned.');return;} const old=assignmentFor(state.selectedGuest); if(old&&old.table.id!==table.id){showDuplicate(table,seatIndex,old);return;} table.assignments[seatIndex]=state.selectedGuest; state.selectedGuest=null; setStatus('Guest assigned'); render(); }
@@ -64,7 +100,7 @@ function makeSeatRow(table,index) {
   handle.draggable=true;
   handle.title='Drag to reorder seat';
   handle.setAttribute('aria-label',`Drag Seat ${index+1} to reorder`);
-  handle.textContent='⠿';
+  handle.innerHTML='<span class="drag-dots" aria-hidden="true"></span>';
 
   const number=document.createElement('span');number.className='seat-number';number.textContent=`Seat ${index+1}`;
   const combo=makeCombobox(table,index);
