@@ -35,6 +35,31 @@ function ensureCustomPositions(table) {
 function assignmentFor(name) { for (const table of state.tables) { const seat = table.assignments.indexOf(name); if (seat >= 0) return {table, seat}; } return null; }
 function usedNamesExcept(table, seat) { const used = new Set(); state.tables.forEach(t => t.assignments.forEach((name, i) => { if (name && !(t.id === table.id && i === seat)) used.add(name); })); return used; }
 
+function placeChairName(name, position, table, index) {
+  name.title=name.textContent;
+  if(table.shape!=='rectangle'){
+    name.style.left=`${position.x+12.5+position.dx*25}px`;
+    name.style.top=`${position.y+12.5+position.dy*25-6}px`;
+    name.style.transform=position.dx<-.2?'translateX(-100%)':'';
+    return;
+  }
+  name.classList.add('rectangle-chair-name');
+  const layer=index%3, horizontal=Math.abs(position.dx)>Math.abs(position.dy);
+  if(!horizontal){
+    name.style.left=`${position.x+12.5}px`;
+    name.style.top=position.dy<0?`${position.y-18-layer*17}px`:`${position.y+26+layer*17}px`;
+    name.style.transform='translateX(-50%)';
+  }else if(position.dx<0){
+    name.style.left=`${position.x-8-layer*15}px`;
+    name.style.top=`${position.y+12.5}px`;
+    name.style.transform='translate(-100%,-50%)';
+  }else{
+    name.style.left=`${position.x+33+layer*15}px`;
+    name.style.top=`${position.y+12.5}px`;
+    name.style.transform='translateY(-50%)';
+  }
+}
+
 function render() {
   canvas.innerHTML = '';
   state.tables.forEach(table => {
@@ -47,7 +72,7 @@ function render() {
       const chair = document.createElement('button'); chair.className = `chair ${table.assignments[index] ? 'occupied' : ''} ${state.selectedGuest ? 'pending' : ''}`; chair.style.left = `${position.x}px`; chair.style.top = `${position.y}px`; chair.textContent = index + 1; chair.title = table.assignments[index] || `Seat ${index + 1}`;
       if(table.shape==='rectangle' && tableLayout(table)==='custom') makeChairDraggable(chair,object,table,index,position);
       chair.addEventListener('click', e => { e.stopPropagation(); if(chair.dataset.dragged==='true'){delete chair.dataset.dragged;return;} assignGuest(table.id, index); }); object.appendChild(chair);
-      if (table.assignments[index]) { const name = document.createElement('span'); name.className='chair-name'; name.textContent=table.assignments[index]; name.style.left=`${position.x+12.5+position.dx*25}px`; name.style.top=`${position.y+12.5+position.dy*25-6}px`; name.style.transform=position.dx<-.2?'translateX(-100%)':''; object.appendChild(name); }
+      if (table.assignments[index]) { const name = document.createElement('span'); name.className='chair-name'; name.textContent=table.assignments[index]; placeChairName(name,position,table,index); object.appendChild(name); }
     });
     makeDraggable(object, table); canvas.appendChild(object);
   });

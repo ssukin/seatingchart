@@ -1,0 +1,11 @@
+Seatery current update — September 22, 2026
+
+This package includes:
+- Up to 32 chairs per table
+- Rectangular tables with no end chairs
+- Rectangular tables with one chair at each end
+- Custom rectangular layouts with draggable chairs
+- Existing guest editing/deletion, table dragging, and complete PNG export
+
+To verify the update, open a rectangular table and look for the "Chair placement"
+selector in the Edit table dialog.
