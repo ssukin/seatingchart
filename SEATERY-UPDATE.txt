@@ -6,6 +6,8 @@ This package includes:
 - Rectangular tables with one chair at each end
 - Custom rectangular layouts with draggable chairs
 - Rectangular tables grow with chair count, with leader lines from chairs to names
+- Guest-list CSV export includes food choice, table number, description, and seat number
+- Guests have editable food choices and tables have editable descriptions
 - Existing guest editing/deletion, table dragging, and complete PNG export
 
 To verify the update, open a rectangular table and look for the "Chair placement"

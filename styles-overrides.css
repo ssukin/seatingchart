@@ -23,6 +23,9 @@
 .guest-row-action{width:23px;height:23px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;line-height:1;font-size:15px}
 .guest-row-action:hover{background:var(--blue-soft);color:var(--blue)}
 .guest-row-action.delete:hover{background:#fff0f0;color:#b14d4d}
+.table-description{font-style:italic;color:#6b7a89;max-width:220px;overflow-wrap:anywhere}
+.table-description-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 6px}
+.table-description-input{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px;background:#fff}
 .table-layout-control{margin-top:14px}
 .table-layout-control label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
 .table-layout-control select{width:100%;border:1px solid var(--line);border-radius:7px;padding:9px;background:#fff}
