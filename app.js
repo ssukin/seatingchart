@@ -168,7 +168,7 @@ function renderGuests() {
     const actions=document.createElement('span'); actions.className='guest-row-actions';
     const edit=document.createElement('button'); edit.type='button'; edit.className='guest-row-action'; edit.title=`Edit ${guest.name}`; edit.setAttribute('aria-label',`Edit ${guest.name}`); edit.textContent='✎';
     const dietary=guest.dietaryRestrictions?.trim()?document.createElement('button'):null;
-    if(dietary){dietary.type='button'; dietary.className='guest-row-action'; dietary.title=`Edit dietary restrictions for ${guest.name}`; dietary.setAttribute('aria-label',`Edit dietary restrictions for ${guest.name}`); dietary.textContent='⚠';}
+    if(dietary){dietary.type='button'; dietary.className='guest-row-action guest-inline-dietary'; dietary.title=`Edit dietary restrictions for ${guest.name}`; dietary.setAttribute('aria-label',`Edit dietary restrictions for ${guest.name}`); dietary.textContent='⚠';}
     const remove=document.createElement('button'); remove.type='button'; remove.className='guest-row-action delete'; remove.title=`Delete ${guest.name}`; remove.setAttribute('aria-label',`Delete ${guest.name}`); remove.textContent='×';
     edit.onclick=event=>{
       event.stopPropagation();
