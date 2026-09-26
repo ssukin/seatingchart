@@ -1,6 +1,9 @@
 const $ = selector => document.querySelector(selector);
 const state = { tables: [], guests: [], nextTable: 1, selectedGuest: null, shape: 'round', zoom: 1 };
 const canvas = $('#canvas');
+const moreActions=$('#more-actions'),moreActionsMenu=$('#more-actions-menu');
+const closeMoreActions=()=>{if(!moreActionsMenu)return;moreActionsMenu.hidden=true;moreActions.setAttribute('aria-expanded','false');};
+if(moreActions){moreActions.onclick=event=>{event.stopPropagation();const open=moreActionsMenu.hidden;moreActionsMenu.hidden=!open;moreActions.setAttribute('aria-expanded',String(open));};document.addEventListener('click',event=>{if(!event.target.closest('.actions-menu-wrap'))closeMoreActions();});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMoreActions();});}
 for (let i = 2; i <= 32; i++) $('#seat-count').insertAdjacentHTML('beforeend', `<option>${i}</option>`);
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -142,6 +145,7 @@ function renderGuests() {
     const actions=document.createElement('span'); actions.className='guest-row-actions';
     const edit=document.createElement('button'); edit.type='button'; edit.className='guest-row-action'; edit.title=`Edit ${guest.name}`; edit.setAttribute('aria-label',`Edit ${guest.name}`); edit.textContent='✎';
     const food=document.createElement('button'); food.type='button'; food.className='guest-row-action'; food.title=`Edit food choice for ${guest.name}`; food.setAttribute('aria-label',`Edit food choice for ${guest.name}`); food.textContent='🍴';
+    const dietary=document.createElement('button'); dietary.type='button'; dietary.className='guest-row-action'; dietary.title=`Edit dietary restrictions for ${guest.name}`; dietary.setAttribute('aria-label',`Edit dietary restrictions for ${guest.name}`); dietary.textContent='⚠';
     const remove=document.createElement('button'); remove.type='button'; remove.className='guest-row-action delete'; remove.title=`Delete ${guest.name}`; remove.setAttribute('aria-label',`Delete ${guest.name}`); remove.textContent='×';
     edit.onclick=event=>{
       event.stopPropagation();
@@ -162,6 +166,13 @@ function renderGuests() {
       guest.foodChoice=next.trim();
       render(); showToast('Food choice updated');
     };
+    dietary.onclick=event=>{
+      event.stopPropagation();
+      const next=prompt(`Dietary restrictions for ${guest.name}:`,guest.dietaryRestrictions||'');
+      if(next===null)return;
+      guest.dietaryRestrictions=next.trim();
+      render(); showToast('Dietary restrictions updated');
+    };
     remove.onclick=event=>{
       event.stopPropagation();
       if(!confirm(`Delete ${guest.name}? This will also clear their seat assignment.`))return;
@@ -170,7 +181,7 @@ function renderGuests() {
       if(state.selectedGuest===guest.name){state.selectedGuest=null;setStatus('Select a guest to assign');}
       render(); showToast('Guest deleted');
     };
-    actions.append(edit,food,remove); row.append(dot,name,guestLocation,actions);
+    actions.append(edit,food,dietary,remove); row.append(dot,name,guestLocation,actions);
     row.onclick=()=>{state.selectedGuest=state.selectedGuest===guest.name?null:guest.name; setStatus(state.selectedGuest?`Selected ${state.selectedGuest} — click an open chair`:'Select a guest to assign'); render();};
     list.appendChild(row);
   });
@@ -247,10 +258,10 @@ $('#excel-input').onchange=async e=>{const file=e.target.files[0];if(!file)retur
 function download(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);} $('#export-project').onclick=()=>download('seatery-project.json',JSON.stringify({tables:state.tables,guests:state.guests,nextTable:state.nextTable},null,2),'application/json');$('#import-project').onclick=()=>$('#project-input').click();$('#project-input').onchange=async e=>{try{Object.assign(state,JSON.parse(await e.target.files[0].text()));render();showToast('Project restored');}catch{showToast('Could not open project file');}};
 const csvCell=value=>`"${String(value??'').replace(/"/g,'""')}"`;
 $('#export-guests').onclick=()=>{
-  const rows=[['Guest Name','Food Choice','Table Number','Table Description','Seat Number','Assigned']];
+  const rows=[['Guest Name','Food Choice','Dietary Restrictions','Table Number','Table Description','Seat Number','Assigned']];
   state.guests.forEach(guest=>{
     const location=assignmentFor(guest.name),table=location&&location.table;
-    rows.push([guest.name,guest.foodChoice||'',table?table.number:'',table?table.description||'':'',location?location.seat+1:'',location?'Yes':'No']);
+    rows.push([guest.name,guest.foodChoice||'',guest.dietaryRestrictions||'',table?table.number:'',table?table.description||'':'',location?location.seat+1:'',location?'Yes':'No']);
   });
   download('seatery-guest-list.csv',rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');
 };

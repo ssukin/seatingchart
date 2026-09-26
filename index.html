@@ -12,12 +12,17 @@
     <header class="topbar">
       <div class="brand"><span class="brand-mark">S</span><span>Seatery</span></div>
       <div class="top-actions">
-        <label class="file-button">Import Excel<input id="excel-input" type="file" accept=".xlsx,.xls,.csv" /></label>
-        <button id="import-project" class="button secondary">Import project</button>
-        <input id="project-input" type="file" accept=".json" hidden />
         <button id="export-project" class="button secondary">Save project</button>
-        <button id="export-guests" class="button secondary">Export guest list</button>
         <button id="export-png" class="button primary">Export PNG</button>
+        <button id="import-project" class="button secondary" type="button">Import project</button>
+        <div class="actions-menu-wrap">
+          <button id="more-actions" class="button secondary actions-menu-button" type="button" aria-expanded="false" aria-controls="more-actions-menu">More <span aria-hidden="true">⌄</span></button>
+          <div id="more-actions-menu" class="actions-menu-panel" hidden>
+            <label class="menu-action file-button">Import Excel<input id="excel-input" type="file" accept=".xlsx,.xls,.csv" /></label>
+            <button id="export-guests" class="menu-action" type="button">Export guest list</button>
+          </div>
+        </div>
+        <input id="project-input" type="file" accept=".json" hidden />
       </div>
     </header>
 

@@ -8,6 +8,8 @@ This package includes:
 - Rectangular tables grow with chair count, with leader lines from chairs to names
 - Guest-list CSV export includes food choice, table number, description, and seat number
 - Guests have editable food choices and tables have editable descriptions
+- Guests have a separate dietary-restrictions field and export column
+- Save project and Export PNG remain visible; other actions are in the More menu
 - Existing guest editing/deletion, table dragging, and complete PNG export
 
 To verify the update, open a rectangular table and look for the "Chair placement"
