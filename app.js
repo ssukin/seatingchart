@@ -3,7 +3,7 @@ const state = { tables: [], guests: [], nextTable: 1, selectedGuest: null, shape
 const canvas = $('#canvas');
 const moreActions=$('#more-actions'),moreActionsMenu=$('#more-actions-menu');
 const closeMoreActions=()=>{if(!moreActionsMenu)return;moreActionsMenu.hidden=true;moreActions.setAttribute('aria-expanded','false');};
-if(moreActions){moreActions.onclick=event=>{event.stopPropagation();const open=moreActionsMenu.hidden;moreActionsMenu.hidden=!open;moreActions.setAttribute('aria-expanded',String(open));};document.addEventListener('click',event=>{if(!event.target.closest('.actions-menu-wrap'))closeMoreActions();});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMoreActions();});}
+if(moreActions){moreActions.onclick=event=>{event.stopPropagation();const open=moreActionsMenu.hidden;if(open){const rect=moreActions.getBoundingClientRect();moreActionsMenu.style.top=`${rect.bottom+3}px`;moreActionsMenu.style.left=`${rect.left+rect.width/2}px`;}moreActionsMenu.hidden=!open;moreActions.setAttribute('aria-expanded',String(open));};document.addEventListener('click',event=>{if(!event.target.closest('.actions-menu-wrap'))closeMoreActions();});document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMoreActions();});}
 for (let i = 2; i <= 32; i++) $('#seat-count').insertAdjacentHTML('beforeend', `<option>${i}</option>`);
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -186,7 +186,7 @@ function renderGuests() {
       if(state.selectedGuest===guest.name){state.selectedGuest=null;setStatus('Select a guest to assign');}
       render(); showToast('Guest deleted');
     };
-    actions.append(edit); if(dietary) actions.append(dietary); actions.append(remove); row.append(dot,name,guestLocation,actions);
+    actions.append(edit,remove); row.append(dot,name); if(dietary) row.append(dietary); row.append(guestLocation,actions);
     row.onclick=()=>{state.selectedGuest=state.selectedGuest===guest.name?null:guest.name; setStatus(state.selectedGuest?`Selected ${state.selectedGuest} — click an open chair`:'Select a guest to assign'); render();};
     list.appendChild(row);
   });
@@ -256,7 +256,9 @@ function makeCombobox(table,index) { const wrapper=document.createElement('div')
 function refreshAllComboboxes(){const modal=document.querySelector('.modal');if(!modal)return;const table=state.tables.find(t=>t.number===Number($('#modal-number').value));if(!table)return;modal.querySelectorAll('.seat-row').forEach((row,i)=>{const input=row.querySelector('.guest-combobox'),menu=row.querySelector('.combobox-menu');if(!input||!menu)return;const used=usedNamesExcept(table,i);menu.innerHTML='';state.guests.filter(g=>g.name.toLowerCase().includes(input.value.toLowerCase())).forEach(g=>{const option=document.createElement('button');option.type='button';option.className=`combobox-option ${used.has(g.name)?'unavailable':''}`;option.disabled=used.has(g.name);option.textContent=g.name;option.onclick=()=>{table.assignments[i]=g.name;input.value=g.name;menu.classList.remove('open');refreshAllComboboxes();};menu.appendChild(option);});});}
 
 $('#add-table').onclick=()=>{const seats=+$('#seat-count').value,index=state.tables.length;state.tables.push({id:crypto.randomUUID(),number:state.nextTable++,shape:state.shape,seats,flipped:false,description:'',chairLayout:state.shape==='rectangle'?'none':null,customPositions:null,assignments:Array(seats).fill(null),x:480+(index%4)*330,y:300+Math.floor(index/4)*300});setStatus('Drag tables into place, or click a table to edit');render();}; document.querySelectorAll('.shape-choice').forEach(button=>button.onclick=()=>{document.querySelectorAll('.shape-choice').forEach(b=>b.classList.remove('active'));button.classList.add('active');state.shape=button.dataset.shape;}); $('#guest-search').oninput=renderGuests;
-$('#add-guest').onclick=()=>openGuestEditor();$('#clear-guests').onclick=()=>{if(confirm('Remove all guests and assignments?')){state.guests=[];state.tables.forEach(t=>t.assignments=t.assignments.map(()=>null));render();}};$('#clear-chart').onclick=()=>{if(confirm('Clear all tables and guests?')){state.tables=[];state.guests=[];state.nextTable=1;localStorage.removeItem('seatery-project');render();setStatus('Add a table to begin');}};
+$('#add-guest').onclick=()=>openGuestEditor();$('#clear-guests').onclick=()=>{if(confirm('Remove all guests and assignments?')){state.guests=[];state.tables.forEach(t=>t.assignments=t.assignments.map(()=>null));render();}};
+const clearChart=()=>{if(confirm('Clear all tables and guests?')){state.tables=[];state.guests=[];state.nextTable=1;localStorage.removeItem('seatery-project');render();setStatus('Add a table to begin');}};
+$('#clear-chart').onclick=clearChart;$('#clear-chart-sidebar').onclick=clearChart;
 function setZoom(value){state.zoom=Math.max(.5,Math.min(1.6,value));canvas.style.transform=`scale(${state.zoom})`;$('#zoom-value').textContent=`${Math.round(state.zoom*100)}%`;}
 $('#zoom-in').onclick=()=>setZoom(state.zoom+.1);$('#zoom-out').onclick=()=>setZoom(state.zoom-.1);$('#zoom-reset').onclick=()=>setZoom(1);
 $('#excel-input').onchange=async e=>{
