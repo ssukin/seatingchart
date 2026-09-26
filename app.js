@@ -133,6 +133,29 @@ function makeChairDraggable(chair, object, table, index, position) {
 }
 
 function makeDraggable(object, table) { let start = null; object.addEventListener('pointerdown', e => { if (e.target.closest('.chair')) return; start = {x:e.clientX,y:e.clientY,tx:table.x,ty:table.y}; object.setPointerCapture(e.pointerId); }); object.addEventListener('pointermove', e => { if (!start) return; table.x=snap(start.tx+(e.clientX-start.x)/state.zoom); table.y=snap(start.ty+(e.clientY-start.y)/state.zoom); object.style.left=`${table.x}px`; object.style.top=`${table.y}px`; }); object.addEventListener('pointerup', () => { if (start) { start=null; save(); } }); }
+function openGuestEditor(guest=null) {
+  const root=$('#modal-root'),isNew=!guest;
+  const draft=guest||{name:'',foodChoice:'',dietaryRestrictions:''};
+  root.innerHTML=`<div class="modal-backdrop"><div class="modal"><div class="modal-header"><div><h2>${isNew?'Add guest':'Edit guest'}</h2><p class="modal-subtitle">Keep guest details together for seating and export.</p></div><button class="modal-close" type="button">×</button></div><label for="guest-name">Guest name</label><input id="guest-name" value="${escapeHtml(draft.name)}" placeholder="Full name"><label for="guest-food">Food choice</label><input id="guest-food" value="${escapeHtml(draft.foodChoice||'')}" placeholder="Optional"><label for="guest-dietary">Dietary restrictions</label><input id="guest-dietary" value="${escapeHtml(draft.dietaryRestrictions||'')}" placeholder="Optional"><div class="modal-actions"><button class="button secondary modal-cancel" type="button">Cancel</button><button class="button primary" id="save-guest" type="button">${isNew?'Add guest':'Save guest'}</button></div></div></div>`;
+  root.querySelector('.modal-close').onclick=closeModal;
+  root.querySelector('.modal-cancel').onclick=closeModal;
+  root.querySelector('#save-guest').onclick=()=>{
+    const name=root.querySelector('#guest-name').value.trim();
+    if(!name){showToast('Guest name cannot be empty.');return;}
+    if(state.guests.some(g=>g!==guest&&g.name.toLowerCase()===name.toLowerCase())){showToast('That guest already exists.');return;}
+    const foodChoice=root.querySelector('#guest-food').value.trim();
+    const dietaryRestrictions=root.querySelector('#guest-dietary').value.trim();
+    if(isNew){state.guests.push({name,foodChoice,dietaryRestrictions});}
+    else{
+      const old=guest.name; guest.name=name; guest.foodChoice=foodChoice; guest.dietaryRestrictions=dietaryRestrictions;
+      state.tables.forEach(table=>table.assignments=table.assignments.map(value=>value===old?name:value));
+      if(state.selectedGuest===old)state.selectedGuest=name;
+    }
+    closeModal();render();showToast(isNew?'Guest added':'Guest updated');
+  };
+  root.querySelector('#guest-name').focus();
+}
+
 function renderGuests() {
   const query=$('#guest-search').value.toLowerCase(), list=$('#guest-list');
   list.innerHTML='';
@@ -144,34 +167,16 @@ function renderGuests() {
     const guestLocation=document.createElement('span'); guestLocation.className='guest-location'; guestLocation.textContent=location?`T${location.table.number} · S${location.seat+1}`:'';
     const actions=document.createElement('span'); actions.className='guest-row-actions';
     const edit=document.createElement('button'); edit.type='button'; edit.className='guest-row-action'; edit.title=`Edit ${guest.name}`; edit.setAttribute('aria-label',`Edit ${guest.name}`); edit.textContent='✎';
-    const food=document.createElement('button'); food.type='button'; food.className='guest-row-action'; food.title=`Edit food choice for ${guest.name}`; food.setAttribute('aria-label',`Edit food choice for ${guest.name}`); food.textContent='🍴';
-    const dietary=document.createElement('button'); dietary.type='button'; dietary.className='guest-row-action'; dietary.title=`Edit dietary restrictions for ${guest.name}`; dietary.setAttribute('aria-label',`Edit dietary restrictions for ${guest.name}`); dietary.textContent='⚠';
+    const dietary=guest.dietaryRestrictions?.trim()?document.createElement('button'):null;
+    if(dietary){dietary.type='button'; dietary.className='guest-row-action'; dietary.title=`Edit dietary restrictions for ${guest.name}`; dietary.setAttribute('aria-label',`Edit dietary restrictions for ${guest.name}`); dietary.textContent='⚠';}
     const remove=document.createElement('button'); remove.type='button'; remove.className='guest-row-action delete'; remove.title=`Delete ${guest.name}`; remove.setAttribute('aria-label',`Delete ${guest.name}`); remove.textContent='×';
     edit.onclick=event=>{
       event.stopPropagation();
-      const next=prompt('Edit guest name:',guest.name);
-      if(next===null)return;
-      const trimmed=next.trim();
-      if(!trimmed){showToast('Guest name cannot be empty.');return;}
-      if(state.guests.some(g=>g!==guest&&g.name.toLowerCase()===trimmed.toLowerCase())){showToast('That guest already exists.');return;}
-      const old=guest.name; guest.name=trimmed;
-      state.tables.forEach(table=>table.assignments=table.assignments.map(value=>value===old?trimmed:value));
-      if(state.selectedGuest===old)state.selectedGuest=trimmed;
-      render(); showToast('Guest updated');
+      openGuestEditor(guest);
     };
-    food.onclick=event=>{
+    if(dietary) dietary.onclick=event=>{
       event.stopPropagation();
-      const next=prompt(`Food choice for ${guest.name}:`,guest.foodChoice||'');
-      if(next===null)return;
-      guest.foodChoice=next.trim();
-      render(); showToast('Food choice updated');
-    };
-    dietary.onclick=event=>{
-      event.stopPropagation();
-      const next=prompt(`Dietary restrictions for ${guest.name}:`,guest.dietaryRestrictions||'');
-      if(next===null)return;
-      guest.dietaryRestrictions=next.trim();
-      render(); showToast('Dietary restrictions updated');
+      openGuestEditor(guest);
     };
     remove.onclick=event=>{
       event.stopPropagation();
@@ -181,7 +186,7 @@ function renderGuests() {
       if(state.selectedGuest===guest.name){state.selectedGuest=null;setStatus('Select a guest to assign');}
       render(); showToast('Guest deleted');
     };
-    actions.append(edit,food,dietary,remove); row.append(dot,name,guestLocation,actions);
+    actions.append(edit); if(dietary) actions.append(dietary); actions.append(remove); row.append(dot,name,guestLocation,actions);
     row.onclick=()=>{state.selectedGuest=state.selectedGuest===guest.name?null:guest.name; setStatus(state.selectedGuest?`Selected ${state.selectedGuest} — click an open chair`:'Select a guest to assign'); render();};
     list.appendChild(row);
   });
@@ -251,10 +256,38 @@ function makeCombobox(table,index) { const wrapper=document.createElement('div')
 function refreshAllComboboxes(){const modal=document.querySelector('.modal');if(!modal)return;const table=state.tables.find(t=>t.number===Number($('#modal-number').value));if(!table)return;modal.querySelectorAll('.seat-row').forEach((row,i)=>{const input=row.querySelector('.guest-combobox'),menu=row.querySelector('.combobox-menu');if(!input||!menu)return;const used=usedNamesExcept(table,i);menu.innerHTML='';state.guests.filter(g=>g.name.toLowerCase().includes(input.value.toLowerCase())).forEach(g=>{const option=document.createElement('button');option.type='button';option.className=`combobox-option ${used.has(g.name)?'unavailable':''}`;option.disabled=used.has(g.name);option.textContent=g.name;option.onclick=()=>{table.assignments[i]=g.name;input.value=g.name;menu.classList.remove('open');refreshAllComboboxes();};menu.appendChild(option);});});}
 
 $('#add-table').onclick=()=>{const seats=+$('#seat-count').value,index=state.tables.length;state.tables.push({id:crypto.randomUUID(),number:state.nextTable++,shape:state.shape,seats,flipped:false,description:'',chairLayout:state.shape==='rectangle'?'none':null,customPositions:null,assignments:Array(seats).fill(null),x:480+(index%4)*330,y:300+Math.floor(index/4)*300});setStatus('Drag tables into place, or click a table to edit');render();}; document.querySelectorAll('.shape-choice').forEach(button=>button.onclick=()=>{document.querySelectorAll('.shape-choice').forEach(b=>b.classList.remove('active'));button.classList.add('active');state.shape=button.dataset.shape;}); $('#guest-search').oninput=renderGuests;
-$('#add-guest').onclick=()=>{const name=prompt('Guest full name:');if(name&&name.trim()&&!state.guests.some(g=>g.name.toLowerCase()===name.trim().toLowerCase())){state.guests.push({name:name.trim()});render();}};$('#clear-guests').onclick=()=>{if(confirm('Remove all guests and assignments?')){state.guests=[];state.tables.forEach(t=>t.assignments=t.assignments.map(()=>null));render();}};$('#clear-chart').onclick=()=>{if(confirm('Clear all tables and guests?')){state.tables=[];state.guests=[];state.nextTable=1;localStorage.removeItem('seatery-project');render();setStatus('Add a table to begin');}};
+$('#add-guest').onclick=()=>openGuestEditor();$('#clear-guests').onclick=()=>{if(confirm('Remove all guests and assignments?')){state.guests=[];state.tables.forEach(t=>t.assignments=t.assignments.map(()=>null));render();}};$('#clear-chart').onclick=()=>{if(confirm('Clear all tables and guests?')){state.tables=[];state.guests=[];state.nextTable=1;localStorage.removeItem('seatery-project');render();setStatus('Add a table to begin');}};
 function setZoom(value){state.zoom=Math.max(.5,Math.min(1.6,value));canvas.style.transform=`scale(${state.zoom})`;$('#zoom-value').textContent=`${Math.round(state.zoom*100)}%`;}
 $('#zoom-in').onclick=()=>setZoom(state.zoom+.1);$('#zoom-out').onclick=()=>setZoom(state.zoom-.1);$('#zoom-reset').onclick=()=>setZoom(1);
-$('#excel-input').onchange=async e=>{const file=e.target.files[0];if(!file)return;const rows=XLSX.utils.sheet_to_json(XLSX.read(await file.arrayBuffer()).Sheets[XLSX.read(await file.arrayBuffer()).SheetNames[0]],{header:1});const headers=rows[0]||[];const root=$('#modal-root');root.innerHTML=`<div class="modal-backdrop"><div class="modal"><h2>Choose name column</h2><p class="modal-subtitle">Select the full-name column to import.</p><select id="name-column">${headers.map((h,i)=>`<option value="${i}">${escapeHtml(h||`Column ${i+1}`)}</option>`).join('')}</select><div class="modal-actions"><button class="button secondary modal-cancel">Cancel</button><button id="import-names" class="button primary">Import names</button></div></div></div>`;root.querySelector('.modal-cancel').onclick=closeModal;$('#import-names').onclick=()=>{const col=+$('#name-column').value;rows.slice(1).map(r=>String(r[col]||'').trim()).filter(Boolean).forEach(name=>{if(!state.guests.some(g=>g.name.toLowerCase()===name.toLowerCase()))state.guests.push({name});});closeModal();render();showToast('Guests imported');};};
+$('#excel-input').onchange=async e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const workbook=XLSX.read(await file.arrayBuffer());
+  const sheet=workbook.Sheets[workbook.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(sheet,{header:1});
+  const headers=rows[0]||[];
+  const normalized=headers.map(h=>String(h||'').toLowerCase().replace(/[^a-z0-9]/g,''));
+  const guess=(terms, fallback=-1)=>{const found=normalized.findIndex(h=>terms.some(term=>h.includes(term)));return found>=0?found:fallback;};
+  const nameGuess=guess(['name','guest','fullname','person'],0);
+  const foodGuess=guess(['food','meal','entree','entrée','choice'],-1);
+  const dietaryGuess=guess(['diet','allerg','restriction','specialneed'],-1);
+  const options=(selected,allowNone=true)=>`${allowNone?'<option value="-1">— None —</option>':''}${headers.map((h,i)=>`<option value="${i}" ${i===selected?'selected':''}>${escapeHtml(h||`Column ${i+1}`)}</option>`).join('')}`;
+  const root=$('#modal-root');
+  root.innerHTML=`<div class="modal-backdrop"><div class="modal"><div class="modal-header"><div><h2>Import guest details</h2><p class="modal-subtitle">Choose which columns contain each guest field.</p></div><button class="modal-close" type="button">×</button></div><label for="name-column">Guest name column</label><select id="name-column">${options(nameGuess,false)}</select><label for="food-column">Food choice column</label><select id="food-column">${options(foodGuess)}</select><label for="dietary-column">Dietary restrictions column</label><select id="dietary-column">${options(dietaryGuess)}</select><div class="modal-actions"><button class="button secondary modal-cancel" type="button">Cancel</button><button id="import-names" class="button primary" type="button">Import guests</button></div></div></div>`;
+  root.querySelector('.modal-close').onclick=closeModal; root.querySelector('.modal-cancel').onclick=closeModal;
+  $('#import-names').onclick=()=>{
+    const nameCol=+$('#name-column').value,foodCol=+$('#food-column').value,dietaryCol=+$('#dietary-column').value;
+    rows.slice(1).forEach(row=>{
+      const name=String(row[nameCol]??'').trim(); if(!name)return;
+      const foodChoice=foodCol>=0?String(row[foodCol]??'').trim():'';
+      const dietaryRestrictions=dietaryCol>=0?String(row[dietaryCol]??'').trim():'';
+      const existing=state.guests.find(g=>g.name.toLowerCase()===name.toLowerCase());
+      if(existing){if(foodChoice)existing.foodChoice=foodChoice;if(dietaryRestrictions)existing.dietaryRestrictions=dietaryRestrictions;}
+      else state.guests.push({name,foodChoice,dietaryRestrictions});
+    });
+    closeModal();render();showToast('Guests imported');
+  };
+  e.target.value='';
+};
 function download(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);} $('#export-project').onclick=()=>download('seatery-project.json',JSON.stringify({tables:state.tables,guests:state.guests,nextTable:state.nextTable},null,2),'application/json');$('#import-project').onclick=()=>$('#project-input').click();$('#project-input').onchange=async e=>{try{Object.assign(state,JSON.parse(await e.target.files[0].text()));render();showToast('Project restored');}catch{showToast('Could not open project file');}};
 const csvCell=value=>`"${String(value??'').replace(/"/g,'""')}"`;
 $('#export-guests').onclick=()=>{
